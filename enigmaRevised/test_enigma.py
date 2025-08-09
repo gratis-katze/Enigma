@@ -59,17 +59,17 @@ class TestRotor(unittest.TestCase):
         self.assertFalse(self.rotor.is_at_notch())
     
     def test_encoding_consistency(self):
-        """Test that forward and backward encoding are consistent."""
+        """Test that encoding methods produce valid output."""
         test_letter = "A"
         self.rotor.position = "A"
         
-        # Encode forward then backward should return original
-        forward = self.rotor.encode_forward(test_letter)
-        backward = self.rotor.encode_backward(forward)
+        # Test that encoding produces valid output
+        encoded = self.rotor.encode_from_alphabet(test_letter, "A")
+        self.assertIn(encoded, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
         
-        # Note: This test isn't valid due to rotor mechanics
-        # But we can test that encoding produces valid output
-        self.assertIn(forward, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        # Test reverse encoding  
+        reverse_encoded = self.rotor.encode_to_alphabet(encoded, "A")
+        self.assertIn(reverse_encoded, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 
 class TestReflector(unittest.TestCase):

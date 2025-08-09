@@ -1,6 +1,6 @@
 """
 Rotor class for the Enigma machine.
-Handles rotor rotation, encoding, and notch detection.
+Uses the original algorithm logic but with clean class structure.
 """
 
 # Handle both direct execution and module imports
@@ -11,9 +11,12 @@ except ImportError:
 
 
 class Rotor:
-    """Represents a single rotor in the Enigma machine."""
+    """
+    Represents a single rotor in the Enigma machine.
+    Implements the original next_letter algorithm logic internally.
+    """
     
-    def __init__(self, wiring: str, notch: str, position: str = 'A'):
+    def __init__(self, wiring: str, notch: str, position: str = 'A', rotor_type: str = ""):
         """
         Initialize a rotor.
         
@@ -21,6 +24,7 @@ class Rotor:
             wiring: The rotor's internal wiring (26 characters)
             notch: The position at which this rotor causes the next rotor to step
             position: Initial position of the rotor (A-Z)
+            rotor_type: The rotor type name (e.g., 'I', 'II', 'III') for original algorithm
         """
         if len(wiring) != 26:
             raise ValueError("Rotor wiring must be exactly 26 characters")
@@ -32,9 +36,12 @@ class Rotor:
         self.wiring = wiring
         self.notch = notch
         self.position = position
+        self.rotor_type = rotor_type
     
     def step(self) -> None:
-        """Advance the rotor by one position."""
+        """
+        Advance the rotor by one position using original rotate logic.
+        """
         current_index = ALPHABET.index(self.position)
         self.position = ALPHABET[(current_index + 1) % 26]
     
@@ -42,61 +49,70 @@ class Rotor:
         """Check if the rotor is at its notch position."""
         return self.position == self.notch
     
-    def encode_forward(self, letter: str) -> str:
+    def encode_from_alphabet(self, letter: str, output_position: str) -> str:
         """
-        Encode a letter passing through the rotor from right to left.
-        
-        Args:
-            letter: Input letter (A-Z)
-            
-        Returns:
-            Encoded letter (A-Z)
+        Encode letter from alphabet through rotor (original algorithm).
+        Replicates: next_letter(letter, "A", rotor_position, "ABC", rotor_type)
         """
         if letter not in ALPHABET:
             raise ValueError(f"Letter must be A-Z, got {letter}")
+        if output_position not in ALPHABET:
+            raise ValueError(f"Output position must be A-Z, got {output_position}")
             
-        # Calculate offset based on rotor position
-        offset = ALPHABET.index(self.position)
-        
-        # Get input position adjusted for rotor position
-        input_position = (ALPHABET.index(letter) + offset) % 26
-        
-        # Get output from rotor wiring
-        output_letter = self.wiring[input_position]
-        
-        # Adjust output for rotor position
-        output_position = (ALPHABET.index(output_letter) - offset) % 26
-        
-        return ALPHABET[output_position]
+        # Original algorithm math: from alphabet wiring through rotor
+        index = (ALPHABET.index(letter) - ALPHABET.index("A")) % 26
+        encoded_letter = self.wiring[(index + ALPHABET.index(output_position)) % 26]
+        return encoded_letter
     
-    def encode_backward(self, letter: str) -> str:
+    def encode_to_alphabet(self, letter: str, input_position: str) -> str:
         """
-        Encode a letter passing through the rotor from left to right (return path).
-        
-        Args:
-            letter: Input letter (A-Z)
-            
-        Returns:
-            Encoded letter (A-Z)
+        Encode letter from rotor to alphabet (original algorithm).
+        Replicates: next_letter(letter, rotor_position, "A", rotor_type, "ABC")
         """
         if letter not in ALPHABET:
             raise ValueError(f"Letter must be A-Z, got {letter}")
+        if input_position not in ALPHABET:
+            raise ValueError(f"Input position must be A-Z, got {input_position}")
             
-        # Calculate offset based on rotor position
-        offset = ALPHABET.index(self.position)
-        
-        # Adjust input for rotor position
-        adjusted_input_position = (ALPHABET.index(letter) + offset) % 26
-        adjusted_input_letter = ALPHABET[adjusted_input_position]
-        
-        # Find where this letter appears in the wiring (reverse lookup)
-        wiring_position = self.wiring.index(adjusted_input_letter)
-        
-        # Adjust output for rotor position
-        output_position = (wiring_position - offset) % 26
-        
-        return ALPHABET[output_position]
+        # Original algorithm math: from rotor wiring to alphabet
+        index = (self.wiring.index(letter) - ALPHABET.index(input_position)) % 26
+        encoded_letter = ALPHABET[(index + ALPHABET.index("A")) % 26]
+        return encoded_letter
+    
+    def encode_through_rotor(self, letter: str, input_position: str, output_position: str, target_rotor) -> str:
+        """
+        Encode letter from this rotor through another rotor (original algorithm).
+        Replicates: next_letter(letter, input_pos, output_pos, "ABC", target_rotor_type)
+        """
+        if letter not in ALPHABET:
+            raise ValueError(f"Letter must be A-Z, got {letter}")
+        if input_position not in ALPHABET:
+            raise ValueError(f"Input position must be A-Z, got {input_position}")
+        if output_position not in ALPHABET:
+            raise ValueError(f"Output position must be A-Z, got {output_position}")
+            
+        # Original algorithm math: from alphabet through target rotor
+        index = (ALPHABET.index(letter) - ALPHABET.index(input_position)) % 26
+        encoded_letter = target_rotor.wiring[(index + ALPHABET.index(output_position)) % 26]
+        return encoded_letter
+    
+    def encode_from_rotor(self, letter: str, input_position: str, output_position: str, source_rotor) -> str:
+        """
+        Encode letter from another rotor through alphabet (original algorithm).
+        Replicates: next_letter(letter, input_pos, output_pos, source_rotor_type, "ABC")
+        """
+        if letter not in ALPHABET:
+            raise ValueError(f"Letter must be A-Z, got {letter}")
+        if input_position not in ALPHABET:
+            raise ValueError(f"Input position must be A-Z, got {input_position}")
+        if output_position not in ALPHABET:
+            raise ValueError(f"Output position must be A-Z, got {output_position}")
+            
+        # Original algorithm math: from source rotor to alphabet
+        index = (source_rotor.wiring.index(letter) - ALPHABET.index(input_position)) % 26
+        encoded_letter = ALPHABET[(index + ALPHABET.index(output_position)) % 26]
+        return encoded_letter
     
     def __repr__(self) -> str:
         """String representation of the rotor."""
-        return f"Rotor(position='{self.position}', notch='{self.notch}')"
+        return f"Rotor(type='{self.rotor_type}', position='{self.position}', notch='{self.notch}')"

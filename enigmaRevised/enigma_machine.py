@@ -49,56 +49,69 @@ class EnigmaMachine:
             if pos not in ALPHABET:
                 raise ValueError(f"Invalid position: {pos}")
         
-        # Initialize rotors (left to right)
+        # Initialize rotors (left to right) with rotor types for original algorithm
         self.left_rotor = Rotor(
             ROTOR_CONFIGURATIONS[rotor_types[0]]["wiring"],
             ROTOR_CONFIGURATIONS[rotor_types[0]]["notch"],
-            initial_positions[0]
+            initial_positions[0],
+            rotor_types[0]
         )
         self.center_rotor = Rotor(
             ROTOR_CONFIGURATIONS[rotor_types[1]]["wiring"],
             ROTOR_CONFIGURATIONS[rotor_types[1]]["notch"],
-            initial_positions[1]
+            initial_positions[1],
+            rotor_types[1]
         )
         self.right_rotor = Rotor(
             ROTOR_CONFIGURATIONS[rotor_types[2]]["wiring"],
             ROTOR_CONFIGURATIONS[rotor_types[2]]["notch"],
-            initial_positions[2]
+            initial_positions[2],
+            rotor_types[2]
         )
         
         # Initialize reflector
         self.reflector = Reflector(REFLECTOR_WIRING)
         
-        # Step counters for statistics
+        # Store rotor types for original algorithm
+        self.rotors = rotor_types
+        
+        # Step counters for statistics (matching original counters array)
         self.step_counts = [0, 0, 0]  # left, center, right
     
-    def _step_rotors(self) -> None:
+    def _perform_stepping(self) -> None:
         """
-        Handle rotor stepping according to Enigma double-stepping mechanism.
-        This must be called BEFORE encoding each letter.
+        Handle the original stepping logic exactly as it appeared.
+        This includes the bugs and duplicate stepping behavior.
         """
-        # Check for double-stepping condition
-        center_at_notch = self.center_rotor.is_at_notch()
-        right_at_notch = self.right_rotor.is_at_notch()
-        
-        # Always step the right rotor
+        # Always step right rotor first (original behavior)
         self.right_rotor.step()
-        self.step_counts[2] += 1
         
-        # Step center rotor if right rotor was at notch or center rotor is at notch (double-stepping)
-        if right_at_notch or center_at_notch:
+        # Center rotor stepping during encoding (original location of bug)
+        if self.center_rotor.is_at_notch():
+            self.step_counts[1] += 1  # matches counters[2] in original
             self.center_rotor.step()
-            self.step_counts[1] += 1
-        
-        # Step left rotor if center rotor was at notch
-        if center_at_notch:
             self.left_rotor.step()
-            self.step_counts[0] += 1
+        
+        # Left rotor stepping during encoding (original location)  
+        if self.left_rotor.is_at_notch():
+            self.step_counts[0] += 1  # matches counters[3] in original
+            self.left_rotor.step()
+            
+    def _perform_end_stepping(self) -> None:
+        """
+        Handle the duplicate stepping logic at the end (original bug).
+        """
+        # Additional stepping check at the end (original duplicate logic bug)
+        if self.right_rotor.is_at_notch():
+            self.step_counts[1] += 1  # matches counters[1] in original
+            self.center_rotor.step()
     
     def encode_letter(self, letter: str) -> str:
         """
-        Encode a single letter through the complete Enigma mechanism.
-        This replicates the exact logic from the original implementation.
+        Encode a single letter using the refactored classes with original algorithm.
+        
+        Each step uses the appropriate class method while maintaining the exact 
+        original stepping behavior and encoding sequence.
         
         Args:
             letter: Single letter to encode (A-Z)
@@ -109,44 +122,76 @@ class EnigmaMachine:
         if letter not in ALPHABET:
             raise ValueError(f"Letter must be A-Z, got {letter}")
         
-        # Always rotate right rotor first (matches original)
-        self.right_rotor.step()
-        self.step_counts[2] += 1
-        
-        # Forward pass through rotors (right to left)
         current_letter = letter
         
-        # Right rotor encoding
-        current_letter = self.right_rotor.encode_forward(current_letter)
+        # Step 1: Always rotate right rotor first (original behavior)
+        self.right_rotor.step()
         
-        # Center rotor - check for stepping DURING encoding (matches original)
+        # Step 2: Right rotor encoding (alphabet -> rotor III)
+        # Replicates: next_letter(letter, "A", right_position, "ABC", rotors[2])
+        current_letter = self.right_rotor.encode_from_alphabet(current_letter, self.right_rotor.position)
+        
+        # Step 3: Center rotor stepping check DURING encoding (original bug location)
         if self.center_rotor.is_at_notch():
+            self.step_counts[1] += 1  # matches counters[2] in original
             self.center_rotor.step()
             self.left_rotor.step()
-            self.step_counts[1] += 1
-            self.step_counts[0] += 1
-            
-        current_letter = self.center_rotor.encode_forward(current_letter)
         
-        # Left rotor - check for stepping DURING encoding (matches original)
+        # Step 4: Center rotor encoding (alphabet -> rotor II)  
+        # Replicates: next_letter(letter, right_pos, center_pos, "ABC", rotors[1])
+        current_letter = self.right_rotor.encode_through_rotor(
+            current_letter, 
+            self.right_rotor.position, 
+            self.center_rotor.position, 
+            self.center_rotor
+        )
+        
+        # Step 5: Left rotor stepping check DURING encoding (original location)
         if self.left_rotor.is_at_notch():
+            self.step_counts[0] += 1  # matches counters[3] in original
             self.left_rotor.step()
-            self.step_counts[0] += 1
             
-        current_letter = self.left_rotor.encode_forward(current_letter)
+        # Step 6: Left rotor encoding (alphabet -> rotor I)
+        # Replicates: next_letter(letter, center_pos, left_pos, "ABC", rotors[0])
+        current_letter = self.center_rotor.encode_through_rotor(
+            current_letter,
+            self.center_rotor.position,
+            self.left_rotor.position,
+            self.left_rotor
+        )
         
-        # Reflection
+        # Step 7: Reflector
         current_letter = self.reflector.reflect(current_letter, self.left_rotor.position)
         
-        # Backward pass through rotors (left to right)
-        current_letter = self.left_rotor.encode_backward(current_letter)
-        current_letter = self.center_rotor.encode_backward(current_letter)
-        current_letter = self.right_rotor.encode_backward(current_letter)
+        # Step 8: Backward pass - left rotor (rotor I -> alphabet)
+        # Replicates: next_letter(letter, left_pos, center_pos, rotors[0], "ABC")
+        current_letter = self.left_rotor.encode_from_rotor(
+            current_letter, 
+            self.left_rotor.position, 
+            self.center_rotor.position, 
+            self.left_rotor
+        )
         
-        # Additional stepping check at the end (matches original duplicate logic)
-        if self.right_rotor.is_at_notch():
-            self.center_rotor.step()
-            self.step_counts[1] += 1
+        # Step 9: Backward pass - center rotor (rotor II -> alphabet)
+        # Replicates: next_letter(letter, center_pos, right_pos, rotors[1], "ABC") 
+        current_letter = self.center_rotor.encode_from_rotor(
+            current_letter,
+            self.center_rotor.position,
+            self.right_rotor.position,
+            self.center_rotor
+        )
+        
+        # Step 10: Backward pass - right rotor (rotor III -> alphabet)
+        # Replicates: next_letter(letter, right_pos, "A", rotors[2], "ABC")
+        current_letter = self.right_rotor.encode_from_rotor(
+            current_letter,
+            self.right_rotor.position,
+            "A",
+            self.right_rotor
+        )
+        
+        # Step 11: Duplicate stepping check at the end (original bug)
+        self._perform_end_stepping()
         
         return current_letter
     

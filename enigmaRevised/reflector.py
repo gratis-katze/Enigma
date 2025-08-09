@@ -1,6 +1,6 @@
 """
 Reflector class for the Enigma machine.
-Handles letter reflection at the end of the rotor stack.
+Uses the original reflect algorithm but with clean class structure.
 """
 
 # Handle both direct execution and module imports
@@ -11,7 +11,10 @@ except ImportError:
 
 
 class Reflector:
-    """Represents the reflector in the Enigma machine."""
+    """
+    Represents the reflector in the Enigma machine.
+    Encapsulates the original reflect algorithm logic.
+    """
     
     def __init__(self, wiring: str):
         """
@@ -25,19 +28,26 @@ class Reflector:
         
         self.wiring = wiring
         
-        # Validate that reflector has proper pairs (no self-mapping)
+        # Keep original behavior - no strict validation since duplicates are allowed
         self._validate_wiring()
     
     def _validate_wiring(self) -> None:
-        """Validate that the reflector wiring is valid."""
-        # Basic validation - just check length, allow duplicates as per original design
-        if len(set(self.wiring)) != len(self.wiring):
-            # Allow duplicates as mentioned by user that it's OK for reflectors
-            pass
+        """
+        Basic validation of reflector wiring.
+        Allows duplicates as per original design requirements.
+        """
+        # Only validate length - allow duplicates as mentioned by user
+        pass
     
     def reflect(self, letter: str, rotor_position: str) -> str:
         """
-        Reflect a letter through the reflector.
+        Reflect a letter through the reflector using original algorithm.
+        
+        This exactly replicates the original reflect function:
+        - Takes input letter and rotor position  
+        - Applies position offset
+        - Uses original index/rindex logic for bidirectional reflection
+        - Returns position-adjusted output
         
         Args:
             letter: Input letter (A-Z)
@@ -51,16 +61,22 @@ class Reflector:
         if rotor_position not in ALPHABET:
             raise ValueError(f"Rotor position must be A-Z, got {rotor_position}")
         
-        # This matches the original logic from your code
+        # Original algorithm: apply rotor position offset to input
         index = (ALPHABET.index(letter) - ALPHABET.index(rotor_position)) % 26
+        
+        # Get the letter at this position in reflector wiring
         reflector_letter = self.wiring[index]
         
-        # Handle the bidirectional reflection logic from original
+        # Original bidirectional reflection logic
+        # This handles the case where a letter appears multiple times in wiring
         if index == self.wiring.index(reflector_letter):
+            # If current index is first occurrence, use last occurrence
             backward_index = self.wiring.rindex(reflector_letter)
         else:
+            # Otherwise use first occurrence
             backward_index = self.wiring.index(reflector_letter)
-            
+        
+        # Apply rotor position offset to output
         final_letter = ALPHABET[(backward_index + ALPHABET.index(rotor_position)) % 26]
         return final_letter
     
